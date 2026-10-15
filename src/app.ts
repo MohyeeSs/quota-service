@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import { ZodError } from "zod";
 import { accountRoutes } from "./modules/accounts/accounts.routes";
 import { currentAccountRoutes } from "./modules/accounts/current-account.routes";
+import { consumeRoutes } from "./modules/consume/consume.routes";
 import { planRoutes } from "./modules/plans/plans.routes";
 import { userRoutes } from "./modules/users/users.routes";
 
@@ -25,6 +26,7 @@ export function buildApp() {
   app.register(currentAccountRoutes);
   app.register(planRoutes);
   app.register(userRoutes);
+  app.register(consumeRoutes);
 
   return app;
 }

@@ -33,7 +33,6 @@ export async function accountRoutes(app: FastifyInstance) {
       return acc;
     });
 
-    // المفتاح بينعرض مرة وحدة فقط
     return reply.code(201).send({ account, apiKey });
   });
 }

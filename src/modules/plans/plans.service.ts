@@ -2,7 +2,6 @@ import { and, eq, isNull, or } from "drizzle-orm";
 import { db } from "../../db/client";
 import { plans } from "../../db/schema";
 
-// خطة صالحة للتعيين: نفس النوع، وإما جاهزة (account_id null) أو تابعة لنفس الحساب
 export async function findAssignablePlan(
   accountId: string,
   planId: string,

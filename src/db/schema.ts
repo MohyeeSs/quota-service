@@ -8,7 +8,6 @@ export const planScope = pgEnum("plan_scope", ["account", "user"]);
 export const ruleLevel = pgEnum("rule_level", ["account", "user"]);
 export const ruleType = pgEnum("rule_type", ["monthly_allowance", "max_per_request"]);
 
-// account_id = NULL يعني خطة جاهزة (predefined) ومشتركة للكل
 export const plans = pgTable(
   "plans",
   {
