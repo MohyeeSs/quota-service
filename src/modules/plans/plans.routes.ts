@@ -25,7 +25,6 @@ const idParams = z.object({ id: z.guid() });
 export async function planRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireApiKey);
 
-  // الخطط الجاهزة + خطط هذا الحساب فقط
   const visible = (accountId: string) =>
     or(isNull(plans.accountId), eq(plans.accountId, accountId));
 

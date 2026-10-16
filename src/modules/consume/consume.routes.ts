@@ -15,7 +15,7 @@ export async function consumeRoutes(app: FastifyInstance) {
   app.post("/consume", async (req, reply) => {
     const b = body.parse(req.body);
     const r = await consume({
-      accountId: req.accountId, // دايماً من المفتاح
+      accountId: req.accountId, 
       userExternalId: b.userId,
       units: b.units,
       requestId: b.requestId,
@@ -24,7 +24,6 @@ export async function consumeRoutes(app: FastifyInstance) {
     if (r.kind === "user_not_found") return reply.code(404).send({ error: "user_not_found" });
     if (r.kind === "request_id_reused") return reply.code(409).send({ error: "request_id_reused" });
 
-    // الرفض بسبب حد = نتيجة عادية (200 مع accepted:false)، مش خطأ بالطلب
     return {
       requestId: b.requestId,
       accepted: r.accepted,

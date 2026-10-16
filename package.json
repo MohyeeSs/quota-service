@@ -6,7 +6,9 @@
     "test": "vitest",
     "dev": "tsx watch src/server.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/db/migrate.ts"
+    "db:migrate": "tsx src/db/migrate.ts",
+    "start": "tsx src/server.ts",
+    "client": "tsx client/server.ts"
   },
   "keywords": [],
   "author": "",

@@ -17,7 +17,6 @@ const params = z.object({ externalId: z.string().trim().min(1).max(200) });
 export async function userRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireApiKey);
 
-  // الـ accountId دايماً من المفتاح، مش من الطلب
   const load = async (accountId: string, externalId: string) => {
     const [row] = await db
       .select({ user: users, plan: plans })

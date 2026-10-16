@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quota service demo client</title>
+<style>
+  :root { color-scheme: light dark; --ok: #1a7f37; --bad: #c62828; --muted: #888; }
+  body { font-family: system-ui, sans-serif; max-width: 980px; margin: 2rem auto; padding: 0 1rem; }
+  table { border-collapse: collapse; width: 100%; margin: .5rem 0 1.5rem; }
+  th, td { border-bottom: 1px solid #8884; padding: .4rem .5rem; text-align: left; font-size: .9rem; }
+  .accepted { color: var(--ok); font-weight: 600; }
+  .rejected { color: var(--bad); font-weight: 600; }
+  .info { color: var(--muted); }
+  button, input, select { font: inherit; padding: .35rem .7rem; }
+  .row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+  .wrap { overflow-x: auto; }
+  #error { color: var(--bad); }
+</style>
+</head>
+<body>
+<h1>Document processing demo</h1>
+<p>This page plays a calling application. Its backend holds an account API key and asks the quota service to consume units on behalf of users. The client code never changes; only the plans do.</p>
+<div class="row"><button id="run">Run scenario</button><span id="status"></span></div>
+<p id="error"></p>
+
+<div class="wrap">
+<table id="steps">
+  <thead><tr><th>#</th><th>Step</th><th>Request</th><th>Outcome</th><th>Reason</th><th>User</th><th>Account</th></tr></thead>
+  <tbody></tbody>
+</table>
+</div>
+
+<h2>Try it yourself</h2>
+<div class="row">
+  <select id="user"><option>alice</option><option>bob</option></select>
+  <input id="units" type="number" min="1" value="10">
+  <button id="go">Consume</button>
+  <span id="manual"></span>
+</div>
+
+<h2>Current usage</h2>
+<div class="wrap">
+<table id="usage">
+  <thead><tr><th>Who</th><th>Plan</th><th>Monthly allowance</th><th>Per request</th><th>Used</th><th>Remaining</th></tr></thead>
+  <tbody></tbody>
+</table>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+function cell(tr, text, cls) {
+  const td = document.createElement("td");
+  td.textContent = text;
+  if (cls) td.className = cls;
+  tr.appendChild(td);
+}
+
+async function send(method, url, body) {
+  const res = await fetch(url, {
+    method,
+    headers: { "content-type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || String(res.status));
+  return json;
+}
+
+function addStep(s) {
+  const body = $("steps").querySelector("tbody");
+  const tr = document.createElement("tr");
+  cell(tr, body.children.length + 1);
+  cell(tr, s.title);
+  cell(tr, s.request);
+  cell(tr, s.outcome, s.outcome);
+  cell(tr, s.reason);
+  cell(tr, s.user);
+  cell(tr, s.account);
+  body.appendChild(tr);
+}
+
+function renderUsage(u) {
+  const body = $("usage").querySelector("tbody");
+  body.replaceChildren();
+  const rows = [["Account: " + u.account.name, u.account]].concat(u.users.map((x) => [x.userId, x]));
+  rows.forEach(([who, r]) => {
+    const tr = document.createElement("tr");
+    cell(tr, who);
+    cell(tr, r.plan.name);
+    cell(tr, r.plan.monthlyAllowance);
+    cell(tr, r.plan.maxPerRequest);
+    cell(tr, r.used);
+    cell(tr, r.remaining);
+    body.appendChild(tr);
+  });
+}
+
+function fail(err) { $("error").textContent = err.message; }
+
+$("run").onclick = async () => {
+  $("error").textContent = "";
+  $("status").textContent = "running...";
+  try {
+    const out = await send("POST", "/api/scenario");
+    $("steps").querySelector("tbody").replaceChildren();
+    out.steps.forEach(addStep);
+    renderUsage(out.usage);
+    $("status").textContent = "done";
+  } catch (err) { fail(err); $("status").textContent = ""; }
+};
+
+$("go").onclick = async () => {
+  $("error").textContent = "";
+  try {
+    const out = await send("POST", "/api/consume", { userId: $("user").value, units: Number($("units").value) });
+    addStep(out.step);
+    renderUsage(out.usage);
+    $("manual").textContent = out.step.outcome + (out.step.reason ? " (" + out.step.reason + ")" : "");
+  } catch (err) { fail(err); }
+};
+</script>
+</body>
+</html>

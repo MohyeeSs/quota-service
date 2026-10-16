@@ -15,5 +15,38 @@ services:
       interval: 5s
       retries: 10
 
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://quota:quota@db:5432/quota
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    # الميغريشن والـ seed بيشتغلوا قبل السيرفر عند كل تشغيل (آمنين للتكرار)
+    command: sh -c "npm run db:migrate && npm run start"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  client:
+    build: .
+    restart: unless-stopped
+    environment:
+      SERVICE_URL: http://app:3000
+      CLIENT_PORT: "4000"
+    ports:
+      - "4000:4000"
+    depends_on:
+      app:
+        condition: service_healthy
+    command: npm run client
+
 volumes:
   pgdata:

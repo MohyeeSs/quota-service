@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import { accountRoutes } from "./modules/accounts/accounts.routes";
 import { currentAccountRoutes } from "./modules/accounts/current-account.routes";
 import { consumeRoutes } from "./modules/consume/consume.routes";
+import { usageRoutes } from "./modules/usage/usage.routes";
 import { planRoutes } from "./modules/plans/plans.routes";
 import { userRoutes } from "./modules/users/users.routes";
 
@@ -27,6 +28,7 @@ export function buildApp() {
   app.register(planRoutes);
   app.register(userRoutes);
   app.register(consumeRoutes);
+  app.register(usageRoutes);
 
   return app;
 }

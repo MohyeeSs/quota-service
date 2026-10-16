@@ -11,7 +11,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// الأرقام بالسجل لازم تتطابق: عدّاد الحساب = مجموع عدّادات المستخدمين = مجموع المقبول بالسجل
 async function ledger(key: string) {
   const accountId = (await call(app, key, "GET", "/account")).json().account.id as string;
   const sum = async (text: string) => Number((await pool.query(text, [accountId])).rows[0].s);
