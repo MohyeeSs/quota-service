@@ -8,7 +8,7 @@ import { planRoutes } from "./modules/plans/plans.routes";
 import { userRoutes } from "./modules/users/users.routes";
 
 export function buildApp() {
-  const app = Fastify({ logger: process.env.NODE_ENV !== "test" });
+  const app = Fastify({ logger: process.env.NODE_ENV === "test" ? false : { level: process.env.LOG_LEVEL ?? "info" } });
 
   app.setErrorHandler((err: unknown, req, reply) => {
     if (err instanceof ZodError) {
