@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 
-// هاد العميل بيمثّل تطبيق خارجي: بيحمل مفتاح الحساب وبيستهلك وحدات بالنيابة عن مستخدميه.
 const SERVICE_URL = process.env.SERVICE_URL ?? "http://localhost:3000";
 const PORT = Number(process.env.CLIENT_PORT ?? 4000);
 const page = readFileSync(join(process.cwd(), "client", "index.html"));

@@ -33,7 +33,7 @@ type PrevRow = {
   rejected_level: Level | null;
   rejected_rule: RuleName | null;
 };
-type LimitsRow = { a_month: string; a_max: string; u_month: string; u_max: string };
+type LookupRow = { id: string; a_month: string; a_max: string; u_month: string; u_max: string };
 
 const balance = (s: Snapshot): Balance => ({ ...s, remaining: remaining(s) });
 
@@ -45,14 +45,20 @@ export async function consume(input: ConsumeInput, now: Date = new Date()): Prom
   const month = monthStart(now);
 
   return db.transaction(async (tx): Promise<ConsumeResult> => {
-    const found = await tx.execute<{ id: string }>(
-      sql`SELECT id FROM users WHERE account_id = ${accountId} AND external_id = ${userExternalId}`,
-    );
-    const userId = found.rows[0]?.id;
-    if (!userId) return { kind: "user_not_found" };
+    const found = (
+      await tx.execute<LookupRow>(sql`
+        SELECT u.id,
+               ap.monthly_allowance AS a_month, ap.max_per_request AS a_max,
+               up.monthly_allowance AS u_month, up.max_per_request AS u_max
+        FROM users u
+        JOIN accounts a ON a.id = u.account_id
+        JOIN plans ap ON ap.id = a.plan_id
+        JOIN plans up ON up.id = u.plan_id
+        WHERE u.account_id = ${accountId} AND u.external_id = ${userExternalId}`)
+    ).rows[0];
+    if (!found) return { kind: "user_not_found" };
+    const userId = found.id;
 
-    // ترتيب الأقفال ثابت دايماً: صف الحساب ثم صف المستخدم (بيمنع deadlock).
-    // الـ upsert "الفارغ" بينشئ الصف إذا مش موجود، وبيقفله، وبيرجّع القيمة، بطلب واحد.
     const acc = await tx.execute<UsedRow>(sql`
       INSERT INTO account_usage (account_id, month, used)
       VALUES (${accountId}, ${month}::date, 0)
@@ -69,25 +75,14 @@ export async function consume(input: ConsumeInput, now: Date = new Date()): Prom
       FROM request_log
       WHERE account_id = ${accountId} AND request_id = ${requestId}`);
 
-    const lim = (
-      await tx.execute<LimitsRow>(sql`
-        SELECT ap.monthly_allowance AS a_month, ap.max_per_request AS a_max,
-               up.monthly_allowance AS u_month, up.max_per_request AS u_max
-        FROM accounts a
-        JOIN plans ap ON ap.id = a.plan_id
-        JOIN users u  ON u.id = ${userId}
-        JOIN plans up ON up.id = u.plan_id
-        WHERE a.id = ${accountId}`)
-    ).rows[0];
-
     const account: Snapshot = {
-      monthlyAllowance: Number(lim.a_month),
-      maxPerRequest: Number(lim.a_max),
+      monthlyAllowance: Number(found.a_month),
+      maxPerRequest: Number(found.a_max),
       used: Number(acc.rows[0].used),
     };
     const user: Snapshot = {
-      monthlyAllowance: Number(lim.u_month),
-      maxPerRequest: Number(lim.u_max),
+      monthlyAllowance: Number(found.u_month),
+      maxPerRequest: Number(found.u_max),
       used: Number(usr.rows[0].used),
     };
 
@@ -111,23 +106,25 @@ export async function consume(input: ConsumeInput, now: Date = new Date()): Prom
 
     const rejection = evaluate(units, { account, user });
 
-    if (!rejection) {
-      await tx.execute(sql`
-        UPDATE account_usage SET used = used + ${units}
-        WHERE account_id = ${accountId} AND month = ${month}::date`);
-      await tx.execute(sql`
-        UPDATE user_usage SET used = used + ${units}
-        WHERE user_id = ${userId} AND month = ${month}::date`);
-      account.used += units;
-      user.used += units;
-    }
-
-    await tx.execute(sql`
+    const log = sql`
       INSERT INTO request_log
         (account_id, user_id, request_id, units, accepted, rejected_level, rejected_rule, month)
       VALUES
         (${accountId}, ${userId}, ${requestId}, ${units}, ${!rejection},
-         ${rejection?.level ?? null}, ${rejection?.rule ?? null}, ${month}::date)`);
+         ${rejection?.level ?? null}, ${rejection?.rule ?? null}, ${month}::date)`;
+
+    if (rejection) {
+      await tx.execute(log);
+    } else {
+      await tx.execute(sql`
+        WITH a AS (UPDATE account_usage SET used = used + ${units}
+                   WHERE account_id = ${accountId} AND month = ${month}::date),
+             u AS (UPDATE user_usage SET used = used + ${units}
+                   WHERE user_id = ${userId} AND month = ${month}::date)
+        ${log}`);
+      account.used += units;
+      user.used += units;
+    }
 
     return {
       kind: "decided",
