@@ -24,7 +24,6 @@ type PlanFields = {
   used: string;
 };
 
-// الحدود المعروضة هي الخطط المطبّقة حالياً، والمتبقي بيتحسب عليها
 const shape = (r: PlanFields) => {
   const snapshot = {
     monthlyAllowance: Number(r.monthly_allowance),

@@ -8,15 +8,35 @@ type Check = (units: number, ctx: Context) => Rejection | null;
 
 export const remaining = (s: Snapshot) => Math.max(0, s.monthlyAllowance - s.used);
 
-const maxPerRequest =
-  (level: Level): Check =>
-  (units, ctx) =>
-    units > ctx[level].maxPerRequest ? { level, rule: "max_per_request" } : null;
+function maxPerRequest(level: Level): Check {
+  return function (units, ctx) {
+    const limit = ctx[level].maxPerRequest;
 
-const monthlyAllowance =
-  (level: Level): Check =>
-  (units, ctx) =>
-    units > remaining(ctx[level]) ? { level, rule: "monthly_allowance" } : null;
+    if (units > limit) {
+      return {
+        level: level,
+        rule: "max_per_request",
+      };
+    }
+
+    return null;
+  };
+}
+
+function monthlyAllowance(level: Level): Check {
+  return function (units, ctx) {
+    const limit = remaining(ctx[level]);
+
+    if (units > limit) {
+      return {
+        level: level,
+        rule: "monthly_allowance",
+      };
+    }
+
+    return null;
+  };
+}
 
 export const checks: Check[] = [
   maxPerRequest("user"),
